@@ -1,0 +1,39 @@
+name: Deployment plan
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+  issue_comment:
+    types: [edited]
+permissions:
+  contents: read
+  pull-requests: read
+concurrency:
+  group: deployment-plan-${{ github.event_name == 'pull_request' && 'validate' || 'sync' }}-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: false
+jobs:
+  validate:
+    name: Validate deployment plan
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: gigaverse-app/deployment-plan@cee9f8d3bf61fcf77f4120f031491a5dcfd9f1b7 # v0.1.0
+        with:
+          token: ${{ github.token }}
+          mode: validate
+          environments: '{"main":"release"}'
+  sync:
+    name: Sync deployment plan
+    if: github.event_name == 'pull_request_target' || (github.event_name == 'issue_comment' && github.event.issue.pull_request)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      # The pinned tool reads YAML through GitHub APIs. No consumer PR code runs.
+      - uses: gigaverse-app/deployment-plan@cee9f8d3bf61fcf77f4120f031491a5dcfd9f1b7 # v0.1.0
+        with:
+          token: ${{ github.token }}
+          manifest: deployment/followups
+          environments: '{"main":"release"}'
