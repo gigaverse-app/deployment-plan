@@ -51,6 +51,8 @@ The read-only `pull_request` job supplies a check on the PR head, including fork
 
 Keep these jobs separate from application tests. Manifest changes should validate and refresh plans without starting unrelated test suites.
 
+Your repository's [Actions event policy](https://docs.github.com/en/actions/how-tos/administer/control-workflow-execution) must permit `pull_request`, `pull_request_target` and `issue_comment` for this workflow. Scope any policy to `.github/workflows/deployment-plan.yml`. GitHub's default public-repository policy can block `pull_request_target`; do not broadly disable protections or run PR code with the sync token. The public deployment-plan repository explicitly allows these three events for this one workflow.
+
 ## Permissions and completion
 
 The workflow needs repository contents read and pull requests write. It reads PR comments, validates an editor's repository permission, appends source-PR receipts and updates promotion comments. It does not need deployment, package, secret or organization administration permissions.
