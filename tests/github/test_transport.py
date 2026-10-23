@@ -110,3 +110,15 @@ def test_instructions_cannot_forge_a_checkbox():
     )
     body = markdown(plan(Inventory(actions=[definition]), "production", []))[0]
     assert list(checkboxes(body)) == [definition.id]
+
+
+@respx.mock
+def test_human_cli_publication_refreshes_its_own_comment():
+    respx.get(BASE + "/issues/42/comments").respond(
+        200, json=[comment(PLAN_MARKER + "old", author="operator", kind="User")]
+    )
+    update = respx.patch(BASE + "/issues/comments/1").respond(200, json={})
+    api = GitHub(REPOSITORY, "test-token")
+    api.publish(42, [PLAN_MARKER + "new"], PLAN_MARKER, author="operator")
+    assert update.called
+    api.close()

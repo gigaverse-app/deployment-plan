@@ -69,12 +69,7 @@ def execute(api: GitHub, event: dict, manifest: str, environments: dict[str, str
         previous = load(base) if base.exists() else Inventory()
         environment = environments.get(pr["base"]["ref"])
         if environment:
-            actions = {action.id: action for action in [*previous.actions, *inventory.actions]}
-            receipts = api.receipts(list(actions.values()))
-            result = plan(inventory, environment, receipts, previous)
-            api.publish(number, markdown(result), PLAN_MARKER)
-            if result.errors:
-                raise ValueError("\n".join(result.errors))
+            publish_plan(api, number, inventory, environment, previous)
         else:
             args = argparse.Namespace(
                 command="review",
@@ -104,8 +99,19 @@ def execute(api: GitHub, event: dict, manifest: str, environments: dict[str, str
         event_file = directory / "event.json"
         event_file.write_text(json.dumps(event))
         sync_checkbox(argparse.Namespace(event=event_file), inventory, api)
-        receipts = api.receipts(inventory.actions)
-        api.publish(event["issue"]["number"], markdown(plan(inventory, environment, receipts)), PLAN_MARKER)
+        publish_plan(api, event["issue"]["number"], inventory, environment)
+
+
+def publish_plan(
+    api: GitHub, number: int, inventory: Inventory, environment: str, previous: Inventory | None = None
+) -> None:
+    previous = previous if previous is not None else Inventory()
+    actions = {action.id: action for action in [*previous.actions, *inventory.actions]}
+    receipts = api.receipts(list(actions.values()))
+    result = plan(inventory, environment, receipts, previous)
+    api.publish(number, markdown(result), PLAN_MARKER)
+    if result.errors:
+        raise ValueError("\n".join(result.errors))
 
 
 def main() -> None:

@@ -313,7 +313,8 @@ def run(args: argparse.Namespace, api: GitHub | None) -> int:
         if args.publish_pr:
             if api is None:
                 raise ValueError("--publish-pr requires --repo")
-            api.publish(args.publish_pr, bodies, REVIEW_MARKER)
+            author = "github-actions[bot]" if os.environ.get("GITHUB_ACTIONS") == "true" else api.actor()
+            api.publish(args.publish_pr, bodies, REVIEW_MARKER, author=author)
         return int(bool(errors))
     if args.command in {"record", "sync-checkbox"}:
         if inventory.errors:
@@ -331,7 +332,8 @@ def run(args: argparse.Namespace, api: GitHub | None) -> int:
     if args.publish_pr:
         if api is None:
             raise ValueError("--publish-pr requires --repo")
-        api.publish(args.publish_pr, chunks, PLAN_MARKER)
+        author = "github-actions[bot]" if os.environ.get("GITHUB_ACTIONS") == "true" else api.actor()
+        api.publish(args.publish_pr, chunks, PLAN_MARKER, author=author)
     return int(bool(result.errors))
 
 

@@ -122,12 +122,8 @@ class GitHub:
         if saved.body != body:
             raise ValueError(f"receipt read-back differs: {saved.html_url}")
 
-    def publish(self, pr: int, bodies: list[str], marker: str) -> None:
-        existing = [
-            c
-            for c in self.comments(pr)
-            if c.body.startswith(marker) and c.user.login == "github-actions[bot]" and c.user.type == "Bot"
-        ]
+    def publish(self, pr: int, bodies: list[str], marker: str, *, author: str = "github-actions[bot]") -> None:
+        existing = [c for c in self.comments(pr) if c.body.startswith(marker) and c.user.login == author]
         existing.sort(key=lambda comment: comment.id)
         for index, body in enumerate(bodies):
             if index < len(existing):

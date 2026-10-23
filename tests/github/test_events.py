@@ -1,9 +1,11 @@
 import copy
+import json
 
 import pytest
 
 from deployment_plan.automation import execute
 from deployment_plan.github import RECEIPT_MARKER, GitHub
+from deployment_plan.models import Receipt
 from deployment_plan.render import checkboxes
 
 from .harness import GitHubHarness
@@ -112,4 +114,35 @@ def test_invalid_checkbox_edits_cannot_create_receipts(tmp_path, problem):
         with pytest.raises(ValueError):
             execute(api, edited, "deployment/followups", environments, tmp_path / "edit")
         assert not harness.comments.get(42)
+        api.close()
+
+
+def test_concurrent_receipt_during_checkbox_write_fails_with_visible_conflict(tmp_path):
+    with GitHubHarness() as harness:
+        harness.files = {"head": {"deployment/followups/task.yaml": MANIFEST}, "base": {}}
+        event = promotion()
+        harness.pulls[100] = event["pull_request"]
+        api = GitHub(harness.repository, "test-token")
+        environments = {"staging": "staging"}
+        execute(api, event, "deployment/followups", environments, tmp_path / "initial")
+        edited = edit_event(harness.comments[100][0])
+
+        def concurrent_writer(request):
+            response = harness.respond(request)
+            if request.method == "POST" and request.url.path.endswith("/issues/42/comments"):
+                receipt = Receipt.model_validate_json(json.loads(request.content)["body"].split("\n", 1)[1])
+                other = receipt.model_copy(
+                    update={"operation_id": "other-operator", "evidence": "Concurrent independent verification"}
+                )
+                rival = copy.deepcopy(harness.comments[42][-1])
+                rival["id"] = 999
+                rival["body"] = RECEIPT_MARKER + "\n" + other.model_dump_json()
+                harness.comments[42].append(rival)
+            return response
+
+        harness.router.route().mock(side_effect=concurrent_writer)
+        with pytest.raises(ValueError, match="conflicting"):
+            execute(api, edited, "deployment/followups", environments, tmp_path / "edit")
+        assert "conflict" in harness.comments[100][0]["body"]
+        assert len(harness.comments[42]) == 2
         api.close()
