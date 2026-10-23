@@ -5,21 +5,37 @@ Add this workflow to `.github/workflows/deployment-plan.yml`. Replace `v1` with 
 ```yaml
 name: Deployment plan
 on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   pull_request_target:
     types: [opened, synchronize, reopened, ready_for_review]
   issue_comment:
     types: [edited]
 permissions:
   contents: read
-  pull-requests: write
+  pull-requests: read
 concurrency:
-  group: deployment-plan-${{ github.event.pull_request.number || github.event.issue.number }}
+  group: deployment-plan-${{ github.event_name == 'pull_request' && 'validate' || 'sync' }}-${{ github.event.pull_request.number || github.event.issue.number }}
   cancel-in-progress: false
 jobs:
-  plan:
-    if: github.event_name == 'pull_request_target' || github.event.issue.pull_request
+  validate:
+    name: Validate deployment plan
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
+      - uses: gigaverse-app/deployment-plan@v1
+        with:
+          token: ${{ github.token }}
+          mode: validate
+  sync:
+    name: Sync deployment plan
+    if: github.event_name == 'pull_request_target' || (github.event_name == 'issue_comment' && github.event.issue.pull_request)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      # The pinned tool reads YAML through GitHub APIs. No consumer PR code runs.
       - uses: gigaverse-app/deployment-plan@v1
         with:
           token: ${{ github.token }}
@@ -31,7 +47,9 @@ The action installs its own pinned source revision. It reads consumer YAML throu
 
 `environments` maps target branch names to environment names. A PR to a configured branch receives the complete environment plan. Other PRs receive a review of changed definitions. The default-branch copy of the workflow handles checkbox edits, so merge the integration before testing that event.
 
-Keep this job separate from application tests. Manifest changes should validate and refresh plans without starting unrelated test suites.
+The read-only `pull_request` job supplies a check on the PR head, including forks. The trusted `sync` job writes review comments and receipts. Feature reviews compare against the merge base, so branches created before adoption are not mistaken for deletion of newer definitions. Promotion plans compare the complete release head with the target environment branch.
+
+Keep these jobs separate from application tests. Manifest changes should validate and refresh plans without starting unrelated test suites.
 
 ## Permissions and completion
 

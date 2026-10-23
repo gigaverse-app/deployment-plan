@@ -72,5 +72,5 @@
       ]
     }
   },
-  "pull-request-header": "Merging this release PR authorizes publication. Release Please updates the version, changelog, and uv.lock together. After successful main CI, it creates the GitHub release; Publish then validates the exact tag, reruns full CI, and uploads the tested distributions to PyPI through Trusted Publishing."
+  "pull-request-header": "Merging this release PR authorizes publication. Release Please updates the version, changelog, and uv.lock together. After successful main CI it creates the GitHub release. Publish validates the tag, reruns CI, uploads tested GitHub distributions, and publishes to PyPI only when trusted publishing is enabled."
 }

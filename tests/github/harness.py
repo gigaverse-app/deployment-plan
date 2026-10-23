@@ -14,6 +14,7 @@ class GitHubHarness:
         self.comments: dict[int, list[dict]] = {}
         self.files: dict[str, dict[str, str]] = {}
         self.pulls: dict[int, dict] = {}
+        self.merge_base = "base"
         self.permissions = {"operator": "write", "visitor": "read"}
         self.next_id = 1
         self.router = respx.mock(assert_all_called=False)
@@ -31,6 +32,8 @@ class GitHubHarness:
         prefix = f"/repos/{self.repository}"
         if path == "/user":
             return httpx.Response(200, json={"login": "operator"})
+        if path.startswith(prefix + "/compare/"):
+            return httpx.Response(200, json={"merge_base_commit": {"sha": self.merge_base}})
         if match := re.fullmatch(prefix + r"/collaborators/([^/]+)/permission", path):
             login = match[1]
             return (

@@ -5,6 +5,9 @@ branding:
   icon: check-square
   color: blue
 inputs:
+  mode:
+    description: validate for read-only pull_request checks, sync for trusted comment and receipt writes
+    default: sync
   token:
     description: GitHub token with contents read and pull-requests write permissions
     required: true
@@ -31,4 +34,5 @@ runs:
         GH_TOKEN: ${{ inputs.token }}
         DEPLOYMENT_PLAN_MANIFEST: ${{ inputs.manifest }}
         DEPLOYMENT_PLAN_ENVIRONMENTS: ${{ inputs.environments }}
+        DEPLOYMENT_PLAN_MODE: ${{ inputs.mode }}
       run: python -m deployment_plan.automation
