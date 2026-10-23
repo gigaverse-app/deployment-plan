@@ -9,7 +9,7 @@ A release can contain hundreds of PRs. Some need a backfill before deployment, a
 Install the tested wheel from [GitHub Releases](https://github.com/gigaverse-app/deployment-plan/releases):
 
 ```bash
-uv tool install https://github.com/gigaverse-app/deployment-plan/releases/download/v0.1.0/deployment_plan-0.1.0-py3-none-any.whl
+uv tool install https://github.com/gigaverse-app/deployment-plan/releases/download/v0.1.1/deployment_plan-0.1.1-py3-none-any.whl
 ```
 
 PyPI publication is pending trusted-publisher setup. Once enabled, `uv tool install deployment-plan` or `pip install deployment-plan` also works.

@@ -1,6 +1,6 @@
 # deployment-plan extraction and adoption
 
-Status: 0.1.0 published on GitHub Releases; consumer adoption CI is in progress. Retire the migration checklist when both consumers use a published release and their integration checks pass.
+Status: 0.1.1 published on GitHub Releases; consumer adoption CI is in progress. Retire the migration checklist when both consumers use a published release and their integration checks pass.
 
 ## Problem and outcome
 
