@@ -1,6 +1,6 @@
 # deployment-plan extraction and adoption
 
-Status: 0.1.0 published on GitHub Releases; consumer adoption CI is in progress. Retire the migration checklist when both consumers use a published release and their integration checks pass.
+Status: 0.1.1 is published. Both consumer implementations and required CI gates pass; their main-branch review requirements are the remaining merge gate. Trusted workflow activation will be checked after those merges.
 
 ## Problem and outcome
 
@@ -29,9 +29,10 @@ The standalone Apache-2.0 Python package will own validation, planning, renderin
 - [x] Publish readable README, quickstart, schema, lifecycle, security model, migration and operator recovery docs, examples and adoption skill.
 - [x] Configure sibling-style lint/test/build/docs CI, conventional PR titles, Release Please, tested-artifact PyPI publication and versioned Actions tags.
 - [x] Create public repository, verify CI and release packaging, publish first usable release. PyPI account setup is explicitly deferred; GitHub Releases is the tested public distribution channel.
-- [ ] Adopt in backend, preserving the ledger and business OpenAPI acknowledgement integration while removing the private generic implementation.
-- [ ] Adopt in AI with fragment authoring, PR review, staging/production planning and completion handling.
-- [ ] Verify both consumer integrations against the actual installed package and run their required CI checks.
+- [x] Implement adoption in backend, preserving the ledger and business OpenAPI acknowledgement integration while removing the private generic implementation.
+- [x] Implement adoption in AI with fragment authoring, PR review, staging/production planning and completion handling.
+- [x] Verify both consumer integrations against the actual installed 0.1.1 package and pass their required CI gates.
+- [ ] Merge backend #5532 and AI #3139, then verify trusted workflow activation on their current promotion PRs.
 
 ## Migration
 
@@ -50,7 +51,8 @@ Roll out the package before consumer pins. Preserve old command entry points tem
 - [x] Multi-page inventories/comments and large plans retain every item.
 - [x] Legacy backend suite and real ledger parse correctly; generic package imports no private modules.
 - [x] Built wheel works outside the source checkout; source/wheel metadata and version agree.
-- [ ] Finish both consumer CI runs and trusted event verification. Public CI/docs/release checks pass; PyPI configuration remains owner-deferred.
+- [x] Public CI, docs and release checks pass. Both required consumer CI gates pass. Live upstream checkbox reopening/completion and later-PR carry-forward pass.
+- [ ] Verify trusted consumer events after their review-gated merges. PyPI configuration remains owner-deferred.
 
 ## What we learn from sfdx-hardis
 
