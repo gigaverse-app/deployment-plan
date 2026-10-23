@@ -268,6 +268,13 @@ def render_review_comment(changed: LoadedFollowups) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def render_promotion_row(match: PromotionMatch) -> str:
+    return (
+        f"- [ ] PR #{match.entry.pr} (`{match.item.id}`, {match.item.phase.value}) — "
+        f"{match.item.action.strip()} ([{match.entry.ticket_id}]({match.entry.linear}))"
+    )
+
+
 def render_promotion_checklist(
     matches: list[PromotionMatch],
     environment: str,
@@ -283,10 +290,7 @@ def render_promotion_checklist(
         "",
     ]
     for m in matches:
-        lines.append(
-            f"- [ ] PR #{m.entry.pr} (`{m.item.id}`, {m.item.phase.value}) — "
-            f"{m.item.action.strip()} ([{m.entry.ticket_id}]({m.entry.linear}))"
-        )
+        lines.append(render_promotion_row(m))
     if matches:
         lines.append("")
     lines.extend(_render_validation_warning(file_errors, invalid, dropped_from="this checklist"))

@@ -5,6 +5,7 @@ from pathlib import Path
 import yaml
 from pydantic import Field, ValidationError
 
+from deployment_plan.legacy import FollowupEntry, FollowupItem
 from deployment_plan.models import Action, Contract, Inventory, Phase
 
 
@@ -50,26 +51,24 @@ def load(path: Path) -> Inventory:
 
 
 def legacy_actions(raw: list[object], path: Path, errors: list[str]) -> list[Action]:
-    from deployment_plan.legacy import FollowupEntry
-
     actions = []
     for index, candidate in enumerate(raw):
         try:
             entry = FollowupEntry.model_validate(candidate)
             for item in entry.followups:
-                actions.append(
-                    Action(
-                        id=f"pr-{entry.pr}/{item.id}",
-                        instructions=item.action,
-                        owner=entry.owner,
-                        environments=("staging", "production")
-                        if item.environment.value == "both"
-                        else (item.environment.value,),
-                        phase=Phase(item.phase.value.removesuffix("-deploy")),
-                        source_pr=entry.pr,
-                        references=(entry.linear,),
-                    )
-                )
+                actions.append(action_from_legacy(entry, item))
         except (ValidationError, ValueError) as exc:
             errors.append(f"{path}: entry {index + 1}: {exc}")
     return actions
+
+
+def action_from_legacy(entry: FollowupEntry, item: FollowupItem) -> Action:
+    return Action(
+        id=f"pr-{entry.pr}/{item.id}",
+        instructions=item.action,
+        owner=entry.owner,
+        environments=("staging", "production") if item.environment.value == "both" else (item.environment.value,),
+        phase=Phase(item.phase.value.removesuffix("-deploy")),
+        source_pr=entry.pr,
+        references=(entry.linear,),
+    )

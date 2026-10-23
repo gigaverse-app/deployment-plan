@@ -92,6 +92,9 @@ def execute(api: GitHub, event: dict, manifest: str, environments: dict[str, str
         if not event["comment"]["body"].startswith(PLAN_MARKER):
             return
         pr = api.request("GET", f"/repos/{api.repository}/pulls/{event['issue']['number']}")
+        environment = environments.get(pr["base"]["ref"])
+        if environment is None:
+            raise ValueError("completion event is not on a configured promotion branch")
         if pr["head"]["repo"]["full_name"] != api.repository:
             raise ValueError("completion edits on fork promotion plans are unsupported")
         head = snapshot(api, pr["head"]["sha"], manifest, directory / "head")
@@ -101,9 +104,6 @@ def execute(api: GitHub, event: dict, manifest: str, environments: dict[str, str
         event_file = directory / "event.json"
         event_file.write_text(json.dumps(event))
         sync_checkbox(argparse.Namespace(event=event_file), inventory, api)
-        environment = environments.get(pr["base"]["ref"])
-        if environment is None:
-            raise ValueError("completion event is not on a configured promotion branch")
         receipts = api.receipts(inventory.actions)
         api.publish(event["issue"]["number"], markdown(plan(inventory, environment, receipts)), PLAN_MARKER)
 

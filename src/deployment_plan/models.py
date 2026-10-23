@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import re
 from datetime import datetime
 from enum import StrEnum
 
@@ -24,7 +25,7 @@ class Action(Contract):
     owner: str = Field(min_length=1, max_length=200)
     environments: tuple[str, ...] = Field(min_length=1)
     phase: Phase
-    source_pr: int | None = Field(default=None, gt=0)
+    source_pr: int | None = Field(default=None, gt=0, strict=True)
     references: tuple[str, ...] = ()
 
     @field_validator("instructions", "owner")
@@ -38,8 +39,6 @@ class Action(Contract):
     @field_validator("environments")
     @classmethod
     def unique_environments(cls, values: tuple[str, ...]) -> tuple[str, ...]:
-        import re
-
         if any(not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}", v) for v in values):
             raise ValueError("environment names must be simple identifiers")
         if len(set(values)) != len(values):

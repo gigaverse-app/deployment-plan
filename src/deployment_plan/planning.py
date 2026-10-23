@@ -49,6 +49,13 @@ def plan(head: Inventory, environment: str, receipts: list[Receipt], base: Inven
     # Missing definitions remain visible. Removal cannot silently discharge an obligation.
     inventory = {**previous, **current}
     for action in inventory.values():
+        old = previous.get(action.id)
+        removed_environment = (
+            environment not in action.environments and old is not None and environment in old.environments
+        )
+        if removed_environment:
+            assert old is not None
+            action = old
         if environment not in action.environments:
             continue
         try:
@@ -56,7 +63,7 @@ def plan(head: Inventory, environment: str, receipts: list[Receipt], base: Inven
         except ValueError as exc:
             result.errors.append(str(exc))
             item = Item(action=action, environment=environment, status=Status.CONFLICT)
-        missing = action.id not in current
+        missing = action.id not in current or removed_environment
         if missing and item.status != Status.RETIRED:
             result.errors.append(f"{action.id}: removed definition requires explicit retirement; restore the fragment")
         if item.status == Status.CONFLICT:

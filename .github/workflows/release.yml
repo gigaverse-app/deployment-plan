@@ -1,0 +1,83 @@
+name: Publish
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+permissions:
+  contents: read
+
+jobs:
+  validate-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          python-version: '3.14'
+      - name: Require a version-matching tag
+        env:
+          RELEASE_REF: ${{ github.ref }}
+        run: |
+          uv run --no-project python -c 'import os, pathlib, tomllib; version = tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"]; assert os.environ["RELEASE_REF"] == f"refs/tags/v{version}", "Run publishing from the version-matching v tag"'
+  checks:
+    needs: validate-tag
+    uses: ./.github/workflows/ci.yml
+  github-distributions:
+    needs: checks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: distributions
+          path: dist
+      - name: Publish immutable tested GitHub distributions
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: python scripts/publish_github.py
+  publish:
+    if: vars.PYPI_PUBLISHING_ENABLED == 'true'
+    needs: github-distributions
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/deployment-plan/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: distributions
+          path: dist
+      - name: Publish tested distributions with attestations
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # release/v1
+
+  action-version:
+    needs: github-distributions
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Advance the compatible Actions tag after publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            exit 0
+          fi
+          # The Actions API has its own major, independent of the Python package.
+          alias="v1"
+          if gh api "repos/$GH_REPO/git/ref/tags/$alias" --silent; then
+            gh api --method PATCH "repos/$GH_REPO/git/refs/tags/$alias" \
+              -f sha="$RELEASE_SHA" -F force=true --silent
+          else
+            gh api --method POST "repos/$GH_REPO/git/refs" \
+              -f ref="refs/tags/$alias" -f sha="$RELEASE_SHA" --silent
+          fi

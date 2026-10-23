@@ -52,6 +52,10 @@ def markdown(result: Plan, *, limit: int = 60000) -> list[str]:
     blocks.extend(item_markdown(item) for item in result.items)
     if not blocks:
         blocks = ["No deployment actions are recorded for this environment.\n"]
+    return chunk_blocks(heading, blocks, footer, limit=limit)
+
+
+def chunk_blocks(heading: str, blocks: list[str], footer: str, *, limit: int = 60000) -> list[str]:
     chunks = []
     current = heading
     for block in blocks:

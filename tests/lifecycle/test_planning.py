@@ -123,6 +123,15 @@ def test_removed_definition_is_visible_and_not_forgotten():
     assert result.pending[0].missing
 
 
+def test_removed_environment_cannot_hide_an_unfinished_obligation():
+    original = action()
+    changed = action(environments=("staging",))
+    result = plan(Inventory(actions=[changed]), "production", [], Inventory(actions=[original]))
+    assert result.errors
+    assert result.pending[0].action.id == original.id
+    assert result.pending[0].missing
+
+
 def test_late_backfill_is_included_without_commit_range_membership(tmp_path):
     fragment = tmp_path / "late.yaml"
     fragment.write_text("""version: 1

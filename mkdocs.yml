@@ -1,0 +1,16 @@
+site_name: deployment-plan
+site_description: Carry deployment obligations from pull requests through every release
+site_url: https://gigaverse-app.github.io/deployment-plan/
+repo_url: https://github.com/gigaverse-app/deployment-plan
+theme:
+  name: material
+  features: [navigation.sections, content.code.copy]
+nav:
+  - Start here: index.md
+  - GitHub integration: github.md
+  - Completion and recovery: lifecycle.md
+  - Migration: migration.md
+  - Security and limits: security.md
+  - Contributing: contributing.md
+  - Releasing: releasing.md
+  - Implementation plan: implementation-plan.md

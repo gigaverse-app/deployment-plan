@@ -68,7 +68,13 @@ class GitHub:
         if not re.fullmatch(r"[A-Za-z0-9_\[\]-]+", login):
             return False
         if login not in self._permissions:
-            data = self.request("GET", f"/repos/{self.repository}/collaborators/{login}/permission")
+            try:
+                data = self.request("GET", f"/repos/{self.repository}/collaborators/{login}/permission")
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code != 404:
+                    raise
+                self._permissions[login] = False
+                return False
             self._permissions[login] = data["permission"] in {"admin", "maintain", "write"}
         return self._permissions[login]
 
