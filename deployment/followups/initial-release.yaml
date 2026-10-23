@@ -1,0 +1,12 @@
+version: 1
+actions:
+  - id: verify-initial-distribution
+    source_pr: 1
+    owner: maintainers
+    environments: [release]
+    phase: before
+    instructions: |
+      Build the wheel and source distribution, then run strict Twine metadata checks.
+      Install the built wheel into a new environment outside the source checkout.
+      Run deployment-plan validate and plan against an independent manifest.
+      Record the validation evidence before publishing the initial release.
