@@ -85,6 +85,34 @@ def test_non_promotion_comment_cannot_record_completion_even_with_valid_metadata
         api.close()
 
 
+@pytest.mark.parametrize("removed_action", [False, True])
+def test_checkbox_refresh_preserves_base_inventory_and_removal_warnings(tmp_path, removed_action):
+    with GitHubHarness() as harness:
+        base_files = {"deployment/followups/task.yaml": MANIFEST}
+        if removed_action:
+            base_files["deployment/followups/removed.yaml"] = MANIFEST.replace("id: backfill", "id: removed")
+        harness.files = {"head": {"deployment/followups/task.yaml": MANIFEST}, "base": base_files}
+        event = promotion()
+        harness.pulls[100] = event["pull_request"]
+        api = GitHub(harness.repository, "test-token")
+        environments = {"staging": "staging"}
+        if removed_action:
+            with pytest.raises(ValueError, match="removed definition"):
+                execute(api, event, "deployment/followups", environments, tmp_path / "initial")
+        else:
+            execute(api, event, "deployment/followups", environments, tmp_path / "initial")
+        edited = edit_event(harness.comments[100][0])
+        if removed_action:
+            with pytest.raises(ValueError, match="removed definition"):
+                execute(api, edited, "deployment/followups", environments, tmp_path / "edit")
+            assert "definition removed" in harness.comments[100][0]["body"]
+        else:
+            execute(api, edited, "deployment/followups", environments, tmp_path / "edit")
+        assert "carried forward" in harness.comments[100][0]["body"]
+        assert checkboxes(harness.comments[100][0]["body"])["backfill"][1]
+        api.close()
+
+
 def test_unknown_comment_author_cannot_deny_history_reads():
     with GitHubHarness() as harness:
         api = GitHub(harness.repository, "test-token")

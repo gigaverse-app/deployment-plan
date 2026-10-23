@@ -1,6 +1,6 @@
 # deployment-plan extraction and adoption
 
-Status: package implemented; release and consumer adoption in progress. Retire the migration checklist when both consumers use a published release and their integration checks pass.
+Status: 0.1.0 published on GitHub Releases; consumer adoption CI is in progress. Retire the migration checklist when both consumers use a published release and their integration checks pass.
 
 ## Problem and outcome
 
@@ -13,9 +13,9 @@ The standalone Apache-2.0 Python package will own validation, planning, renderin
 1. One YAML fragment per change is the authoring default. Each action has a stable repository-wide ID, instructions, owner, phases (before/during/after), environments, and optional reference URLs. The legacy backend ledger remains readable with IDs namespaced by originating PR. Definitions are data; commands are never executed.
 2. A canonical definition hash covers operational instructions and scope. Completion of a previous revision never completes changed instructions. Cosmetic provenance changes do not reset completion. Staging and production completion are independent.
 3. The release head inventory selects eligible work. Unfinished definitions remain in the inventory and appear in every later release. Comparing the base inventory identifies carried work. Missing unfinished definitions are visible migration/removal errors; definitions remain retained even after explicit retirement. A release branch merge is not deployment evidence.
-4. Append-only receipts on each originating PR record completion, reopening or retirement, the definition revision, environment, authenticated actor, evidence, timestamp and predecessor. GitHub comment IDs give durable ordering. Repeated operation IDs are idempotent. Conflicting successors are surfaced, never silently last-write-wins. API failures are errors, never an empty successful plan.
+4. Append-only receipts on each originating PR record completion, reopening or retirement, the definition revision, environment, authenticated actor, evidence, timestamp and predecessor. Receipt predecessor IDs define causal order; comment timestamps never choose a winner. Repeated operation IDs are idempotent. Conflicting successors are surfaced, never silently last-write-wins. API failures are errors, never an empty successful plan.
 5. A promotion comment is a replaceable view. Stable item metadata identifies the action and revision. Authorized checkbox edits can append receipts; edited descriptions cannot manufacture completion. Explicit CLI completion/reopen supports recovery and audit evidence. Comment size limits require bounded chunks with stable markers.
-6. Planning is pure and shared by JSON and Markdown output. The GitHub adapter fetches state and persists receipts. Local JSON receipt files support reproducible/offline use. Strict validation keeps valid entries available with visible diagnostics; invalid input cannot produce a successful empty plan.
+6. Planning is pure and shared by JSON and Markdown output. The GitHub adapter fetches state and persists receipts. Local SQLite receipts support durable offline use. Strict validation keeps valid entries available with visible diagnostics; invalid input cannot produce a successful empty plan.
 7. GitHub workflows run trusted released tool code with least privilege. PR manifests are parsed as data. Untrusted fork code is never executed with a write token. Public actions install the exact package corresponding to their immutable release.
 
 ## Delivery sequence
@@ -28,7 +28,7 @@ The standalone Apache-2.0 Python package will own validation, planning, renderin
 - [x] Add lifecycle integration tests using real temporary Git repositories and a local HTTP transport harness; test the installed wheel separately.
 - [x] Publish readable README, quickstart, schema, lifecycle, security model, migration and operator recovery docs, examples and adoption skill.
 - [x] Configure sibling-style lint/test/build/docs CI, conventional PR titles, Release Please, tested-artifact PyPI publication and versioned Actions tags.
-- [ ] Create public repository, verify CI and release packaging, configure publishing when account access permits, publish first usable release.
+- [x] Create public repository, verify CI and release packaging, publish first usable release. PyPI account setup is explicitly deferred; GitHub Releases is the tested public distribution channel.
 - [ ] Adopt in backend, preserving the ledger and business OpenAPI acknowledgement integration while removing the private generic implementation.
 - [ ] Adopt in AI with fragment authoring, PR review, staging/production planning and completion handling.
 - [ ] Verify both consumer integrations against the actual installed package and run their required CI checks.
@@ -43,14 +43,14 @@ Roll out the package before consumer pins. Preserve old command entry points tem
 
 ## Validation and completion audit
 
-- [ ] CLI lifecycle: create -> validate -> plan -> complete staging -> later release -> production still pending -> reopen -> changed instructions pending.
-- [ ] Historical late entry appears even when its original PR predates the release range.
-- [ ] Removed definitions, reverts, unsupported source identity, malformed YAML and API outages are visible.
-- [ ] Concurrent and duplicate receipts, stale checkbox edits, untrusted authors, permission failures and partial projection writes cannot invent success.
-- [ ] Multi-page inventories/comments and large plans retain every item.
-- [ ] Legacy backend suite and real ledger parse correctly; generic package imports no private modules.
-- [ ] Built wheel works outside the source checkout; source/wheel metadata and version agree.
-- [ ] Public CI, docs, publishing workflow and both consumer CI runs are inspected, with any external provisioning gap reported accurately.
+- [x] CLI lifecycle: create -> validate -> plan -> complete staging -> later release -> production still pending -> reopen -> changed instructions pending.
+- [x] Historical late entry appears even when its original PR predates the release range.
+- [x] Removed definitions, reverts, unsupported source identity, malformed YAML and API outages are visible.
+- [x] Concurrent and duplicate receipts, stale checkbox edits, untrusted authors, permission failures and partial projection writes cannot invent success.
+- [x] Multi-page inventories/comments and large plans retain every item.
+- [x] Legacy backend suite and real ledger parse correctly; generic package imports no private modules.
+- [x] Built wheel works outside the source checkout; source/wheel metadata and version agree.
+- [ ] Finish both consumer CI runs and trusted event verification. Public CI/docs/release checks pass; PyPI configuration remains owner-deferred.
 
 ## What we learn from sfdx-hardis
 

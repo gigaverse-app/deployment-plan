@@ -108,13 +108,17 @@ def execute(
         if pr["head"]["repo"]["full_name"] != api.repository:
             raise ValueError("completion edits on fork promotion plans are unsupported")
         head = snapshot(api, pr["head"]["sha"], manifest, directory / "head")
+        base = snapshot(api, pr["base"]["sha"], manifest, directory / "base")
         inventory = load(head)
+        previous = load(base) if base.exists() else Inventory()
         if inventory.errors:
             raise ValueError("\n".join(inventory.errors))
         event_file = directory / "event.json"
         event_file.write_text(json.dumps(event))
         sync_checkbox(argparse.Namespace(event=event_file), inventory, api)
-        publish_plan(api, event["issue"]["number"], inventory, environment)
+        # Every projection uses both snapshots, so a checkbox edit cannot erase
+        # carry-forward context or warnings about removed environment actions.
+        publish_plan(api, event["issue"]["number"], inventory, environment, previous)
 
 
 def publish_plan(
