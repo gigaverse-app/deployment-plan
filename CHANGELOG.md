@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/gigaverse-app/deployment-plan/compare/v0.1.0...v0.1.1) (2026-10-23)
+
+
+### Bug fixes
+
+* **github:** retain base inventory after checkbox edits ([2dc5dc0](https://github.com/gigaverse-app/deployment-plan/commit/2dc5dc0425c5c5dbec4e55aa2f1c4ca0de5d69c8))
+
 ## 0.1.0 (2026-10-23)
 
 
