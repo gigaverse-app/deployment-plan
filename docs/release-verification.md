@@ -4,7 +4,9 @@ Version 0.1.1 is available as a wheel and source distribution on [GitHub Release
 
 Both consumers installed the public wheel using their committed lockfiles. Backend preserved all 188 legacy actions and imported 12 exact checked acknowledgements from historical promotion comments. Independent plan reads confirmed five completed staging actions and seven completed production actions. Unknown completion remains pending. Three free-form checked notes are linked for explicit reconciliation in the backend guide.
 
-Adoption CI and cutover tracking: [backend #5532](https://github.com/gigaverse-app/gigaverse-backend/pull/5532) and [AI #3139](https://github.com/gigaverse-app/gigaverse-ai/pull/3139). Their published-action validation jobs pass. Broader consumer CI and post-merge trusted events are still being verified.
+Adoption CI and cutover tracking: [backend #5532](https://github.com/gigaverse-app/gigaverse-backend/pull/5532) and [AI #3139](https://github.com/gigaverse-app/gigaverse-ai/pull/3139). Their published-action validation jobs and required CI gates pass: [backend run](https://github.com/gigaverse-app/gigaverse-backend/actions/runs/40037045384) and [AI run](https://github.com/gigaverse-app/gigaverse-ai/actions/runs/40036755964). Both main branches require an approving review before normal merge. Trusted workflow activation remains pending those merges.
+
+Read-only previews used each adoption PR head with the real staging base: backend produced 175 staging actions, including 160 carried forward and five completed, with no validation errors; AI produced its initial cutover action with no errors.
 
 PyPI publication is disabled until the owner configures the trusted publisher. The GitHub distributions and pinned action are independently usable.
 

@@ -13,4 +13,5 @@ nav:
   - Security and limits: security.md
   - Contributing: contributing.md
   - Releasing: releasing.md
+  - Release verification: release-verification.md
   - Implementation plan: implementation-plan.md
