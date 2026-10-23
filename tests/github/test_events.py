@@ -92,6 +92,25 @@ def test_unknown_comment_author_cannot_deny_history_reads():
         api.close()
 
 
+def test_feature_branch_predating_adoption_does_not_delete_new_main_actions(tmp_path):
+    with GitHubHarness() as harness:
+        harness.files = {"head": {}, "base": {"deployment/followups/task.yaml": MANIFEST}, "common": {}}
+        harness.merge_base = "common"
+        api = GitHub(harness.repository, "test-token")
+        execute(api, promotion(base="main"), "deployment/followups", {"staging": "staging"}, tmp_path)
+        assert "No deployment action definitions changed" in harness.comments[100][0]["body"]
+        api.close()
+
+
+def test_read_only_pull_request_validation_never_writes_comments(tmp_path):
+    with GitHubHarness() as harness:
+        harness.files = {"head": {"deployment/followups/task.yaml": MANIFEST}, "base": {}}
+        api = GitHub(harness.repository, "test-token")
+        execute(api, promotion(base="main"), "deployment/followups", {"staging": "staging"}, tmp_path, publish=False)
+        assert harness.comments == {}
+        api.close()
+
+
 @pytest.mark.parametrize("problem", ["visitor", "instructions", "stale", "revision"])
 def test_invalid_checkbox_edits_cannot_create_receipts(tmp_path, problem):
     with GitHubHarness() as harness:

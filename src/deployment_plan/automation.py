@@ -53,7 +53,9 @@ def snapshot(api: GitHub, ref: str, manifest: str, destination: Path) -> Path:
     return result
 
 
-def execute(api: GitHub, event: dict, manifest: str, environments: dict[str, str], directory: Path) -> None:
+def execute(
+    api: GitHub, event: dict, manifest: str, environments: dict[str, str], directory: Path, *, publish: bool = True
+) -> None:
     if "pull_request" in event:
         pr = event["pull_request"]
         number = event["number"]
@@ -64,25 +66,38 @@ def execute(api: GitHub, event: dict, manifest: str, environments: dict[str, str
         finally:
             if head_api is not api:
                 head_api.close()
-        base = snapshot(api, pr["base"]["sha"], manifest, directory / "base")
+        environment = environments.get(pr["base"]["ref"])
+        base_ref = pr["base"]["sha"]
+        if environment is None:
+            comparison = api.request(
+                "GET", f"/repos/{api.repository}/compare/{base_ref}...{pr['head']['sha']}", params={"per_page": 1}
+            )
+            base_ref = comparison["merge_base_commit"]["sha"]
+        base = snapshot(api, base_ref, manifest, directory / "base")
+        if environment is None and not head.exists() and not base.exists():
+            # An older feature branch may predate adoption on main. Known absence
+            # on both sides of its merge-base diff is an empty review, not deletion.
+            head.parent.mkdir(parents=True, exist_ok=True)
+            head.write_text("[]\n")
         inventory = load(head)
         previous = load(base) if base.exists() else Inventory()
-        environment = environments.get(pr["base"]["ref"])
         if environment:
-            publish_plan(api, number, inventory, environment, previous)
+            publish_plan(api, number, inventory, environment, previous, publish=publish)
         else:
             args = argparse.Namespace(
                 command="review",
                 manifest=head,
                 base_manifest=base if base.exists() else None,
-                output=directory / "review.md",
-                publish_pr=number,
+                output=None,
+                publish_pr=number if publish else None,
                 repo=api.repository,
             )
             if run(args, api):
                 raise ValueError("deployment action review contains validation errors")
         return
     if event.get("action") == "edited" and "comment" in event:
+        if not publish:
+            raise ValueError("checkbox persistence requires sync mode")
         # The source PR may be months old. Use the current promotion head inventory.
         if not event["comment"]["body"].startswith(PLAN_MARKER):
             return
@@ -103,13 +118,23 @@ def execute(api: GitHub, event: dict, manifest: str, environments: dict[str, str
 
 
 def publish_plan(
-    api: GitHub, number: int, inventory: Inventory, environment: str, previous: Inventory | None = None
+    api: GitHub,
+    number: int,
+    inventory: Inventory,
+    environment: str,
+    previous: Inventory | None = None,
+    *,
+    publish: bool = True,
 ) -> None:
     previous = previous if previous is not None else Inventory()
     actions = {action.id: action for action in [*previous.actions, *inventory.actions]}
     receipts = api.receipts(list(actions.values()))
     result = plan(inventory, environment, receipts, previous)
-    api.publish(number, markdown(result), PLAN_MARKER)
+    bodies = markdown(result)
+    if publish:
+        api.publish(number, bodies, PLAN_MARKER)
+    else:
+        print("\n".join(bodies))
     if result.errors:
         raise ValueError("\n".join(result.errors))
 
@@ -120,10 +145,13 @@ def main() -> None:
     environments = json.loads(
         os.environ.get("DEPLOYMENT_PLAN_ENVIRONMENTS", '{"staging":"staging","production":"production"}')
     )
+    mode = os.environ.get("DEPLOYMENT_PLAN_MODE", "sync")
+    if mode not in {"sync", "validate"}:
+        raise ValueError("mode must be sync or validate")
     api = GitHub(os.environ["GITHUB_REPOSITORY"], os.environ["GH_TOKEN"])
     try:
         with tempfile.TemporaryDirectory(prefix="deployment-plan-") as path:
-            execute(api, event, manifest, environments, Path(path))
+            execute(api, event, manifest, environments, Path(path), publish=mode == "sync")
     finally:
         api.close()
 
