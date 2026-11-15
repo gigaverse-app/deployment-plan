@@ -36,4 +36,16 @@ Inspect evidence with `deployment-plan history --id ACTION --environment ENVIRON
 
 API failures fail the command; they never mean an empty completion history. If a write succeeded but the response was lost, retry with the same operation ID. If a checklist edit fails, refresh it and inspect source-PR receipts before retrying.
 
+Confirmed GitHub rate-limit responses (403/429) retry twice, respecting
+`Retry-After` or `X-RateLimit-Reset`, then preserve the failure if the budget is
+still unavailable. Ordinary permission denials do not retry. Headerless rate
+limits wait 60 seconds, then 120 seconds. A primary-limit reset can require
+waiting until the next hourly window; workflow job timeouts remain authoritative.
+
+The GitHub Action caches immutable manifest blobs across snapshots and workflow
+runs. Every restored entry must match its Git blob SHA before use. Damaged entries
+are fetched again; cache loss affects performance only. Trees, comparisons,
+permissions, comments and completion receipts are always read fresh. CLI users
+can opt into the same cache with `DEPLOYMENT_PLAN_BLOB_CACHE=/path/to/cache`.
+
 This is an obligation tracker. It does not provide exactly-once execution, database migrations, automated rollback or proof that an operator's statement is true.
