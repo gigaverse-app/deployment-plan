@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import json
 from datetime import datetime, timezone
 from unittest.mock import patch
 
@@ -128,8 +129,9 @@ def test_human_cli_publication_refreshes_its_own_comment():
     api.close()
 
 
+@pytest.mark.parametrize("corruption", ["invalid-json", "wrong-blob"])
 @respx.mock
-def test_immutable_blobs_survive_client_restarts_without_trusting_corrupt_cache(tmp_path, monkeypatch):
+def test_immutable_blobs_survive_client_restarts_without_trusting_corrupt_cache(tmp_path, monkeypatch, corruption):
     content = b"instructions: verify\n"
     sha = hashlib.sha1(f"blob {len(content)}\0".encode() + content).hexdigest()
     payload = {"encoding": "base64", "content": base64.b64encode(content).decode()}
@@ -140,7 +142,8 @@ def test_immutable_blobs_survive_client_restarts_without_trusting_corrupt_cache(
         assert api.request("GET", f"/repos/{REPOSITORY}/git/blobs/{sha}") == payload
         api.close()
     assert route.call_count == 1
-    (tmp_path / sha).write_text("corrupt")
+    corrupt = "corrupt" if corruption == "invalid-json" else json.dumps(payload | {"content": "dGFtcGVyZWQ="})
+    (tmp_path / sha).write_text(corrupt)
     api = GitHub(REPOSITORY, "test-token")
     assert api.request("GET", f"/repos/{REPOSITORY}/git/blobs/{sha}") == payload
     assert route.call_count == 2
