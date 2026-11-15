@@ -20,6 +20,14 @@ inputs:
 runs:
   using: composite
   steps:
+    # Validate content against its Git blob SHA before reuse. PR-controlled
+    # cache bytes never become authority for manifests or completion receipts.
+    - uses: actions/cache@v5
+      with:
+        path: ${{ runner.temp }}/deployment-plan-blobs
+        key: deployment-plan-blobs-v1-${{ github.repository_id }}-${{ github.event_name }}-${{ github.run_id }}-${{ github.run_attempt }}
+        restore-keys: |
+          deployment-plan-blobs-v1-${{ github.repository_id }}-${{ github.event_name }}-
     - uses: actions/setup-python@v6
       with:
         python-version: '3.12'
@@ -35,4 +43,5 @@ runs:
         DEPLOYMENT_PLAN_MANIFEST: ${{ inputs.manifest }}
         DEPLOYMENT_PLAN_ENVIRONMENTS: ${{ inputs.environments }}
         DEPLOYMENT_PLAN_MODE: ${{ inputs.mode }}
+        DEPLOYMENT_PLAN_BLOB_CACHE: ${{ runner.temp }}/deployment-plan-blobs
       run: python -m deployment_plan.automation

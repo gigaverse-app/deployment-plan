@@ -5,7 +5,15 @@ repository write permission; the explicitly trusted workflow bot may record
 an operator on whose behalf the workflow has already checked permission.
 """
 
+import base64
+import binascii
+import hashlib
+import json
+import os
 import re
+import sys
+import time
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -14,6 +22,36 @@ from pydantic import BaseModel, ConfigDict
 from deployment_plan.models import Action, Receipt
 
 RECEIPT_MARKER = "<!-- deployment-plan:receipt:v1 -->"
+
+
+def valid_blob(data: Any, sha: str) -> bool:
+    """Cached PR data is usable only when its Git object identity verifies."""
+    try:
+        if data["encoding"] != "base64":
+            return False
+        content = base64.b64decode(data["content"])
+        return hashlib.sha1(f"blob {len(content)}\0".encode() + content).hexdigest() == sha
+    except (KeyError, TypeError, ValueError, binascii.Error):
+        return False
+
+
+def rate_limit_delay(response: httpx.Response, attempt: int) -> float | None:
+    """Retry rejected requests, never treat a permission denial as throttling."""
+    if response.status_code not in {403, 429}:
+        return None
+    headers = response.headers
+    if response.status_code == 403 and not (
+        headers.get("x-ratelimit-remaining") == "0" or "retry-after" in headers or "rate limit" in response.text.lower()
+    ):
+        return None
+    try:
+        if "retry-after" in headers:
+            return max(0, float(headers["retry-after"])) + 1
+        if headers.get("x-ratelimit-remaining") == "0" and "x-ratelimit-reset" in headers:
+            return max(0, float(headers["x-ratelimit-reset"]) - time.time()) + 1
+    except ValueError:
+        pass
+    return 60 * (2**attempt)
 
 
 class User(BaseModel):
@@ -41,14 +79,45 @@ class GitHub:
             "X-GitHub-Api-Version": "2022-11-28",
         }
         self._permissions: dict[str, bool] = {}
+        self._blobs: dict[str, Any] = {}
+        cache = os.environ.get("DEPLOYMENT_PLAN_BLOB_CACHE")
+        self._blob_cache = Path(cache) if cache else None
 
     def close(self) -> None:
         self.client.close()
 
     def request(self, method: str, path: str, **kwargs: Any) -> Any:
-        response = self.client.request(method, path, headers=self.headers, **kwargs)
+        match = re.fullmatch(rf"/repos/{re.escape(self.repository)}/git/blobs/([0-9a-f]{{40}})", path)
+        sha = match[1] if method == "GET" and match and not kwargs else None
+        cache_file = self._blob_cache / sha if self._blob_cache and sha else None
+        if sha in self._blobs:
+            return self._blobs[sha]
+        if cache_file:
+            try:
+                cached = json.loads(cache_file.read_text())
+                if valid_blob(cached, sha):
+                    self._blobs[sha] = cached
+                    return cached
+            except (OSError, ValueError):
+                pass  # Missing or damaged cache entries are recovered from GitHub.
+        for attempt in range(3):
+            response = self.client.request(method, path, headers=self.headers, **kwargs)
+            delay = rate_limit_delay(response, attempt)
+            if delay is None or attempt == 2:
+                break
+            print(f"GitHub rate limited {method}; retrying in {delay:.0f}s", file=sys.stderr)
+            time.sleep(delay)
         response.raise_for_status()
-        return response.json() if response.content else None
+        data = response.json() if response.content else None
+        if sha and valid_blob(data, sha):
+            self._blobs[sha] = data
+            if cache_file:
+                try:
+                    cache_file.parent.mkdir(parents=True, exist_ok=True)
+                    cache_file.write_text(json.dumps(data))
+                except OSError:
+                    pass  # An unavailable cache cannot prevent validation.
+        return data
 
     def comments(self, pr: int) -> list[Comment]:
         result = []

@@ -1,9 +1,13 @@
+import base64
+import hashlib
 from datetime import datetime, timezone
+from unittest.mock import patch
 
 import httpx
 import pytest
 import respx
 
+from deployment_plan import github as transport
 from deployment_plan.github import RECEIPT_MARKER, GitHub
 from deployment_plan.models import Action, Inventory, Receipt
 from deployment_plan.planning import plan
@@ -122,3 +126,57 @@ def test_human_cli_publication_refreshes_its_own_comment():
     api.publish(42, [PLAN_MARKER + "new"], PLAN_MARKER, author="operator")
     assert update.called
     api.close()
+
+
+@respx.mock
+def test_immutable_blobs_survive_client_restarts_without_trusting_corrupt_cache(tmp_path, monkeypatch):
+    content = b"instructions: verify\n"
+    sha = hashlib.sha1(f"blob {len(content)}\0".encode() + content).hexdigest()
+    payload = {"encoding": "base64", "content": base64.b64encode(content).decode()}
+    route = respx.get(BASE + f"/git/blobs/{sha}").respond(200, json=payload)
+    monkeypatch.setenv("DEPLOYMENT_PLAN_BLOB_CACHE", str(tmp_path))
+    for _ in range(2):
+        api = GitHub(REPOSITORY, "test-token")
+        assert api.request("GET", f"/repos/{REPOSITORY}/git/blobs/{sha}") == payload
+        api.close()
+    assert route.call_count == 1
+    (tmp_path / sha).write_text("corrupt")
+    api = GitHub(REPOSITORY, "test-token")
+    assert api.request("GET", f"/repos/{REPOSITORY}/git/blobs/{sha}") == payload
+    assert route.call_count == 2
+    api.close()
+
+
+@pytest.mark.parametrize(
+    "status,headers", [(403, {"X-RateLimit-Remaining": "0", "X-RateLimit-Reset": "102"}), (429, {"Retry-After": "2"})]
+)
+@respx.mock
+def test_rate_limits_wait_then_recover(status, headers):
+    route = respx.get(BASE + "/issues/42/comments").mock(
+        side_effect=[
+            httpx.Response(status, headers=headers, json={"message": "API rate limit exceeded for installation"}),
+            httpx.Response(200, json=[]),
+        ]
+    )
+    with patch.object(transport.time, "sleep") as sleep, patch.object(transport.time, "time", return_value=100):
+        api = GitHub(REPOSITORY, "test-token")
+        assert api.comments(42) == []
+        assert route.call_count == 2
+        sleep.assert_called_once_with(3)
+        api.close()
+
+
+@respx.mock
+def test_permission_denials_and_exhausted_retries_preserve_failure():
+    route = respx.get(BASE + "/issues/42/comments").respond(403, json={"message": "Resource not accessible"})
+    with patch.object(transport.time, "sleep") as sleep:
+        api = GitHub(REPOSITORY, "test-token")
+        with pytest.raises(httpx.HTTPStatusError):
+            api.comments(42)
+        assert route.call_count == 1
+        sleep.assert_not_called()
+        route.respond(403, headers={"Retry-After": "1"}, json={"message": "rate limit"})
+        with pytest.raises(httpx.HTTPStatusError):
+            api.comments(42)
+        assert sleep.call_count == 2
+        api.close()
