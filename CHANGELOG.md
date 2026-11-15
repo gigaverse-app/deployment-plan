@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/gigaverse-app/deployment-plan/compare/v0.1.1...v0.1.2) (2026-11-15)
+
+
+### Bug fixes
+
+* **github:** cache immutable blobs and retry rate limits ([#9](https://github.com/gigaverse-app/deployment-plan/issues/9)) ([561391d](https://github.com/gigaverse-app/deployment-plan/commit/561391d4e2cae055f2046c2ec456204d58307955))
+
 ## [0.1.1](https://github.com/gigaverse-app/deployment-plan/compare/v0.1.0...v0.1.1) (2026-10-23)
 
 
